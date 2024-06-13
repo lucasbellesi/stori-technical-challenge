@@ -22,7 +22,7 @@ func InitDB() error {
 		Region: aws.String(os.Getenv("AWS_REGION")),
 	})
 	if err != nil {
-		return fmt.Errorf("Error creating AWS session: %v", err)
+		return fmt.Errorf("error creating AWS session: %v", err)
 	}
 
 	db = dynamodb.New(sess)
@@ -32,7 +32,7 @@ func InitDB() error {
 func SaveTransaction(transaction Transaction) error {
 	av, err := dynamodbattribute.MarshalMap(transaction)
 	if err != nil {
-		return fmt.Errorf("Error marshalling transaction: %v", err)
+		return fmt.Errorf("error marshalling transaction: %v", err)
 	}
 
 	input := &dynamodb.PutItemInput{
@@ -42,7 +42,7 @@ func SaveTransaction(transaction Transaction) error {
 
 	_, err = db.PutItem(input)
 	if err != nil {
-		return fmt.Errorf("Error putting item into DynamoDB: %v", err)
+		return fmt.Errorf("error putting item into DynamoDB: %v", err)
 	}
 
 	return nil
@@ -56,13 +56,13 @@ func GetTransactionSummary() (map[string]map[string]float64, error) {
 
 	result, err := db.Scan(input)
 	if err != nil {
-		return nil, fmt.Errorf("Error scanning DynamoDB table: %v", err)
+		return nil, fmt.Errorf("error scanning DynamoDB table: %v", err)
 	}
 
 	transactions := []Transaction{}
 	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, &transactions)
 	if err != nil {
-		return nil, fmt.Errorf("Error unmarshalling DynamoDB scan result: %v", err)
+		return nil, fmt.Errorf("error unmarshalling DynamoDB scan result: %v", err)
 	}
 
 	for _, transaction := range transactions {
@@ -78,7 +78,7 @@ func GetTransactionSummary() (map[string]map[string]float64, error) {
 		}
 	}
 
-	for month, data := range summary {
+	for _, data := range summary {
 		data["avg_credit"] = data["total_credits"] / data["num_transactions"]
 		data["avg_debit"] = data["total_debits"] / data["num_transactions"]
 	}
