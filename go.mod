@@ -10,5 +10,6 @@ require (
 require (
 	github.com/aws/aws-sdk-go v1.54.1 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 )

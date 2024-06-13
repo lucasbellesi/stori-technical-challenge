@@ -1,16 +1,13 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
-	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	_ "github.com/mattn/go-sqlite3"
 )
 
-var db *dynamodb.DynamoDB
+var DB *sql.DB
 
 type Transaction struct {
 	Date   string  `json:"date"`
@@ -18,69 +15,66 @@ type Transaction struct {
 }
 
 func InitDB() error {
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(os.Getenv("AWS_REGION")),
-	})
+	var err error
+	DB, err = sql.Open("sqlite3", "./transactions.db")
 	if err != nil {
-		return fmt.Errorf("error creating AWS session: %v", err)
+		return fmt.Errorf("Error opening database: %v", err)
 	}
 
-	db = dynamodb.New(sess)
+	createTableQuery := `
+    CREATE TABLE IF NOT EXISTS transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        amount REAL NOT NULL
+    );`
+
+	_, err = DB.Exec(createTableQuery)
+	if err != nil {
+		return fmt.Errorf("Error creating table: %v", err)
+	}
+
 	return nil
 }
 
 func SaveTransaction(transaction Transaction) error {
-	av, err := dynamodbattribute.MarshalMap(transaction)
+	insertQuery := `INSERT INTO transactions (date, amount) VALUES (?, ?)`
+	_, err := DB.Exec(insertQuery, transaction.Date, transaction.Amount)
 	if err != nil {
-		return fmt.Errorf("error marshalling transaction: %v", err)
+		return fmt.Errorf("Error saving transaction: %v", err)
 	}
-
-	input := &dynamodb.PutItemInput{
-		TableName: aws.String(os.Getenv("DYNAMODB_TABLE")),
-		Item:      av,
-	}
-
-	_, err = db.PutItem(input)
-	if err != nil {
-		return fmt.Errorf("error putting item into DynamoDB: %v", err)
-	}
-
 	return nil
 }
 
 func GetTransactionSummary() (map[string]map[string]float64, error) {
 	summary := make(map[string]map[string]float64)
-	input := &dynamodb.ScanInput{
-		TableName: aws.String(os.Getenv("DYNAMODB_TABLE")),
-	}
+	query := `SELECT
+                SUBSTR(date, 1, 7) AS month,
+                COUNT(*) AS num_transactions,
+                AVG(CASE WHEN amount > 0 THEN amount ELSE NULL END) AS avg_credit,
+                AVG(CASE WHEN amount < 0 THEN amount ELSE NULL END) AS avg_debit
+              FROM transactions
+              GROUP BY month`
 
-	result, err := db.Scan(input)
+	rows, err := DB.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("error scanning DynamoDB table: %v", err)
+		return nil, fmt.Errorf("Error retrieving transaction summary: %v", err)
 	}
+	defer rows.Close()
 
-	transactions := []Transaction{}
-	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, &transactions)
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling DynamoDB scan result: %v", err)
-	}
+	for rows.Next() {
+		var month string
+		var numTransactions float64
+		var avgCredit, avgDebit float64
 
-	for _, transaction := range transactions {
-		month := transaction.Date[:7] // Extract YYYY-MM
-		if _, exists := summary[month]; !exists {
-			summary[month] = map[string]float64{"num_transactions": 0, "total_credits": 0, "total_debits": 0}
+		if err := rows.Scan(&month, &numTransactions, &avgCredit, &avgDebit); err != nil {
+			return nil, fmt.Errorf("Error scanning row: %v", err)
 		}
-		summary[month]["num_transactions"]++
-		if transaction.Amount > 0 {
-			summary[month]["total_credits"] += transaction.Amount
-		} else {
-			summary[month]["total_debits"] += transaction.Amount
-		}
-	}
 
-	for _, data := range summary {
-		data["avg_credit"] = data["total_credits"] / data["num_transactions"]
-		data["avg_debit"] = data["total_debits"] / data["num_transactions"]
+		summary[month] = map[string]float64{
+			"num_transactions": numTransactions,
+			"avg_credit":       avgCredit,
+			"avg_debit":        avgDebit,
+		}
 	}
 
 	return summary, nil

@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -28,10 +29,13 @@ func ProcessTransactions(filePath string) (float64, map[string]map[string]float6
 		if err != nil {
 			return 0, nil, err
 		}
-		amount, err := strconv.ParseFloat(record[1], 64)
+
+		amountStr := strings.TrimSpace(record[1])
+		amount, err := strconv.ParseFloat(amountStr, 64)
 		if err != nil {
 			return 0, nil, err
 		}
+
 		month := date.Format("2006-01")
 		transactions[month] = append(transactions[month], amount)
 		totalBalance += amount

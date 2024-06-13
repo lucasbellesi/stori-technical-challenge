@@ -47,7 +47,7 @@ func main() {
 			month, data["num_transactions"], data["avg_credit"], data["avg_debit"])
 	}
 
-	err = email.SendEmail(subject, body, "recipient@example.com")
+	err = email.SendEmail(subject, body, "lucasalejobellesi@gmail.com")
 	if err != nil {
 		log.Fatalf("Error sending email: %v", err)
 	}
