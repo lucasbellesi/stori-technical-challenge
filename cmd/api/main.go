@@ -20,7 +20,7 @@ func main() {
 		log.Fatalf("Error initializing database: %v", err)
 	}
 
-	filePath := "transactions.csv"
+	filePath := "txns.csv"
 	totalBalance, summary, err := transactions.ProcessTransactions(filePath)
 	if err != nil {
 		log.Fatalf("Error processing transactions: %v", err)
@@ -41,11 +41,43 @@ func main() {
 	}
 
 	subject := "Transaction Summary"
-	body := fmt.Sprintf("Total balance: %.2f\n", totalBalance)
+	body := fmt.Sprintf(`
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <p><strong>Total balance:</strong> %.2f</p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                <table class="table table-striped summary-table">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Number of Transactions</th>
+                            <th>Average Credit</th>
+                            <th>Average Debit</th>
+                        </tr>
+                    </thead>
+                    <tbody>`, totalBalance)
+
 	for month, data := range summary {
-		body += fmt.Sprintf("%s: %.0f transactions, avg credit: %.2f, avg debit: %.2f\n",
+		body += fmt.Sprintf(`
+            <tr>
+                <td>%s</td>
+                <td>%.0f</td>
+                <td>%.2f</td>
+                <td>%.2f</td>
+            </tr>`,
 			month, data["num_transactions"], data["avg_credit"], data["avg_debit"])
 	}
+
+	body += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>`
 
 	err = email.SendEmail(subject, body, "lucasalejobellesi@gmail.com")
 	if err != nil {
@@ -53,4 +85,13 @@ func main() {
 	}
 
 	fmt.Println("Email sent successfully!")
+
+	// Retrieve and print all transactions
+	transactions, err := db.GetAllTransactions()
+	if err != nil {
+		log.Fatalf("Error retrieving transactions: %v", err)
+	}
+	for _, transaction := range transactions {
+		fmt.Printf("Date: %s, Amount: %.2f\n", transaction.Date, transaction.Amount)
+	}
 }

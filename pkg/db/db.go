@@ -18,7 +18,7 @@ func InitDB() error {
 	var err error
 	DB, err = sql.Open("sqlite3", "./transactions.db")
 	if err != nil {
-		return fmt.Errorf("Error opening database: %v", err)
+		return fmt.Errorf("error opening database: %v", err)
 	}
 
 	createTableQuery := `
@@ -30,7 +30,7 @@ func InitDB() error {
 
 	_, err = DB.Exec(createTableQuery)
 	if err != nil {
-		return fmt.Errorf("Error creating table: %v", err)
+		return fmt.Errorf("error creating table: %v", err)
 	}
 
 	return nil
@@ -40,42 +40,26 @@ func SaveTransaction(transaction Transaction) error {
 	insertQuery := `INSERT INTO transactions (date, amount) VALUES (?, ?)`
 	_, err := DB.Exec(insertQuery, transaction.Date, transaction.Amount)
 	if err != nil {
-		return fmt.Errorf("Error saving transaction: %v", err)
+		return fmt.Errorf("error saving transaction: %v", err)
 	}
 	return nil
 }
 
-func GetTransactionSummary() (map[string]map[string]float64, error) {
-	summary := make(map[string]map[string]float64)
-	query := `SELECT
-                SUBSTR(date, 1, 7) AS month,
-                COUNT(*) AS num_transactions,
-                AVG(CASE WHEN amount > 0 THEN amount ELSE NULL END) AS avg_credit,
-                AVG(CASE WHEN amount < 0 THEN amount ELSE NULL END) AS avg_debit
-              FROM transactions
-              GROUP BY month`
-
-	rows, err := DB.Query(query)
+func GetAllTransactions() ([]Transaction, error) {
+	rows, err := DB.Query("SELECT date, amount FROM transactions")
 	if err != nil {
-		return nil, fmt.Errorf("Error retrieving transaction summary: %v", err)
+		return nil, fmt.Errorf("error retrieving transactions: %v", err)
 	}
 	defer rows.Close()
 
+	var transactions []Transaction
 	for rows.Next() {
-		var month string
-		var numTransactions float64
-		var avgCredit, avgDebit float64
-
-		if err := rows.Scan(&month, &numTransactions, &avgCredit, &avgDebit); err != nil {
-			return nil, fmt.Errorf("Error scanning row: %v", err)
+		var transaction Transaction
+		if err := rows.Scan(&transaction.Date, &transaction.Amount); err != nil {
+			return nil, fmt.Errorf("error scanning transaction: %v", err)
 		}
-
-		summary[month] = map[string]float64{
-			"num_transactions": numTransactions,
-			"avg_credit":       avgCredit,
-			"avg_debit":        avgDebit,
-		}
+		transactions = append(transactions, transaction)
 	}
 
-	return summary, nil
+	return transactions, nil
 }

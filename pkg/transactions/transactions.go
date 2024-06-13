@@ -24,14 +24,24 @@ func ProcessTransactions(filePath string) (float64, map[string]map[string]float6
 	transactions := make(map[string][]float64)
 	totalBalance := 0.0
 
-	for _, record := range records {
-		date, err := time.Parse("2006-01-02", record[0])
+	for i, record := range records {
+		if i == 0 {
+			// Skip header row
+			continue
+		}
+
+		dateStr := strings.TrimSpace(record[1])
+		transactionStr := strings.TrimSpace(record[2])
+
+		// Convert date format from "7/15" to "2006-07-15" using the current year
+		currentYear := time.Now().Year()
+		date, err := time.Parse("1/2", dateStr)
 		if err != nil {
 			return 0, nil, err
 		}
+		date = date.AddDate(currentYear-date.Year(), 0, 0)
 
-		amountStr := strings.TrimSpace(record[1])
-		amount, err := strconv.ParseFloat(amountStr, 64)
+		amount, err := strconv.ParseFloat(transactionStr, 64)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -45,16 +55,20 @@ func ProcessTransactions(filePath string) (float64, map[string]map[string]float6
 	for month, amounts := range transactions {
 		numTransactions := float64(len(amounts))
 		totalCredits := 0.0
+		numCredits := 0.0
 		totalDebits := 0.0
+		numDebits := 0.0
 		for _, amount := range amounts {
 			if amount > 0 {
 				totalCredits += amount
+				numCredits++
 			} else {
 				totalDebits += amount
+				numDebits++
 			}
 		}
-		avgCredit := totalCredits / numTransactions
-		avgDebit := totalDebits / numTransactions
+		avgCredit := totalCredits / numCredits
+		avgDebit := totalDebits / numDebits
 		summary[month] = map[string]float64{
 			"num_transactions": numTransactions,
 			"avg_credit":       avgCredit,
