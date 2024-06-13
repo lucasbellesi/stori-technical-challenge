@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .email-body {
+            padding: 20px;
+        }
+        .logo {
+            width: 100px;
+            height: auto;
+        }
+        .summary-table {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-body">
+        <h2>Transaction Summary</h2>
+        <p><strong>Total balance is {{.TotalBalance}}</strong></p>
+        {{range $month, $numTransactions := .NumTransactions}}
+        <p>Number of transactions in {{$month}}: {{$numTransactions}}</p>
+        {{end}}
+        <p>Average debit amount: {{.AvgDebitAmount}}</p>
+        <p>Average credit amount: {{.AvgCreditAmount}}</p>
+        <br/>
+        <img src="cid:logo" class="logo" alt="Stori Company Logo">
+    </div>
+</body>
+</html>
