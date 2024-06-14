@@ -9,57 +9,58 @@ import (
 	"stori-technical-challenge/pkg/transactions"
 )
 
-func main() {
-	config.LoadConfig()
+const (
+	Subject               = "Stori - Transaction Summary"
+	FilePath              = "txns.csv"
+	FilePathEmailTemplate = "pkg/email/email_template.html"
+)
 
-	err := db.InitDB()
+func main() {
+	err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Error loading config: %v", err)
+	}
+
+	err = db.InitDB()
 	if err != nil {
 		log.Fatalf("Error initializing database: %v", err)
 	}
 
-	filePath := "txns.csv"
-	totalBalance, summary, err := transactions.ProcessTransactions(filePath)
+	totalBalance, summary, avgDebit, avgCredit, err := transactions.ProcessTransactions(FilePath)
 	if err != nil {
 		log.Fatalf("Error processing transactions: %v", err)
 	}
 
 	for month, data := range summary {
-		for _, amount := range data {
-			date := month + "-01" // Placeholder date
-			transaction := db.Transaction{
-				Date:   date,
-				Amount: amount,
-			}
-			err = db.SaveTransaction(transaction)
-			if err != nil {
-				log.Fatalf("Error saving transaction: %v", err)
-			}
+		// Guardar sólo la cantidad total de transacciones en la base de datos
+		transaction := db.Transaction{
+			Date:   month + "-01",                 // Placeholder date
+			Amount: float64(data.NumTransactions), // Placeholder amount
+		}
+		err = db.SaveTransaction(transaction)
+		if err != nil {
+			log.Fatalf("Error saving transactions: %v", err)
 		}
 	}
 
-	subject := "Transaction Summary"
 	emailData := email.EmailData{
-		TotalBalance: totalBalance,
-		Summary:      []email.MonthSummary{},
+		TotalBalance:    totalBalance,
+		NumTransactions: make(map[string]int),
+		AvgDebitAmount:  avgDebit,
+		AvgCreditAmount: avgCredit,
 	}
 
 	for month, data := range summary {
-		monthSummary := email.MonthSummary{
-			Month:           month,
-			NumTransactions: int(data["num_transactions"]),
-			AvgCredit:       data["avg_credit"],
-			AvgDebit:        data["avg_debit"],
-		}
-		emailData.Summary = append(emailData.Summary, monthSummary)
+		emailData.NumTransactions[month] = data.NumTransactions
 	}
 
-	body, err := email.LoadTemplate("pkg/email/email_template.html", emailData)
+	body, err := email.LoadTemplate(FilePathEmailTemplate, emailData)
 	if err != nil {
 		log.Fatalf("Error loading email template: %v", err)
 	}
 
 	emailSender := email.SMTPSender{}
-	err = emailSender.SendEmail(subject, body)
+	err = emailSender.SendEmail(Subject, body)
 	if err != nil {
 		log.Fatalf("Error sending email: %v", err)
 	}

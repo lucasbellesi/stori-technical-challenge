@@ -27,22 +27,24 @@ func TestProcessTransactions(t *testing.T) {
 	createTestCSV(filePath)
 	defer os.Remove(filePath)
 
-	totalBalance, summary, err := transactions.ProcessTransactions(filePath)
+	totalBalance, summary, avgDebit, avgCredit, err := transactions.ProcessTransactions(filePath)
 	assert.NoError(t, err, "Error processing transactions")
 	assert.Equal(t, 39.74, totalBalance, "Total balance does not match")
 
-	expectedSummary := map[string]map[string]float64{
+	expectedSummary := map[string]transactions.Summary{
 		"2024-07": {
-			"num_transactions": 2,
-			"avg_credit":       60.5,
-			"avg_debit":        -10.3,
+			NumTransactions: 2,
+			AvgCredit:       60.5,
+			AvgDebit:        -10.3,
 		},
 		"2024-08": {
-			"num_transactions": 2,
-			"avg_credit":       10.0,
-			"avg_debit":        -20.46,
+			NumTransactions: 2,
+			AvgCredit:       10.0,
+			AvgDebit:        -20.46,
 		},
 	}
 
 	assert.Equal(t, expectedSummary, summary, "Summary does not match")
+	assert.Equal(t, -15.38, avgDebit, "Average debit amount does not match")
+	assert.Equal(t, 35.25, avgCredit, "Average credit amount does not match")
 }

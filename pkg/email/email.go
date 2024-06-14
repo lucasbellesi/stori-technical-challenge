@@ -5,27 +5,23 @@ import (
 	"fmt"
 	"html/template"
 	"stori-technical-challenge/config"
-	"strconv"
 
 	"gopkg.in/gomail.v2"
 )
 
+const LogoPath = "assets/Stori_Logo_2023-min.png"
+
 type EmailSender interface {
-	SendEmail(subject, body string) error
+	SendEmail(subject, body, toEmail string) error
 }
 
 type SMTPSender struct{}
 
 type EmailData struct {
-	TotalBalance float64
-	Summary      []MonthSummary
-}
-
-type MonthSummary struct {
-	Month           string
-	NumTransactions int
-	AvgCredit       float64
-	AvgDebit        float64
+	TotalBalance    float64
+	NumTransactions map[string]int
+	AvgDebitAmount  float64
+	AvgCreditAmount float64
 }
 
 func (s SMTPSender) SendEmail(subject, body string) error {
@@ -34,17 +30,10 @@ func (s SMTPSender) SendEmail(subject, body string) error {
 	m.SetHeader("To", config.AppConfig.ToEmail)
 	m.SetHeader("Subject", subject)
 
-	logoPath := "Stori_Logo_2023-min.png" // Ruta al archivo del logo
-	m.Embed(logoPath)
-
 	m.SetBody("text/html", body)
+	m.Embed(LogoPath, gomail.SetHeader(map[string][]string{"Content-ID": {"<logo>"}}))
 
-	port, err := strconv.Atoi(config.AppConfig.SMTPPort)
-	if err != nil {
-		return err
-	}
-
-	d := gomail.NewDialer(config.AppConfig.SMTPHost, port, config.AppConfig.SMTPUser, config.AppConfig.SMTPPassword)
+	d := gomail.NewDialer(config.AppConfig.SMTPHost, config.AppConfig.SMTPPort, config.AppConfig.SMTPUser, config.AppConfig.SMTPPassword)
 
 	if err := d.DialAndSend(m); err != nil {
 		return err

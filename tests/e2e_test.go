@@ -4,6 +4,7 @@ import (
 	"os"
 	"stori-technical-challenge/config"
 	"stori-technical-challenge/pkg/db"
+	"stori-technical-challenge/pkg/email"
 	"stori-technical-challenge/pkg/transactions"
 	"testing"
 
@@ -22,7 +23,6 @@ func createTestCSV(filePath string) {
 	file.WriteString("1,7/28,-10.3\n")
 	file.WriteString("2,8/2,-20.46\n")
 	file.WriteString("3,8/13,+10\n")
-	file.WriteString("\n")
 }
 
 func TestE2E(t *testing.T) {
@@ -36,7 +36,7 @@ func TestE2E(t *testing.T) {
 	// Cargar la configuración sin depender del archivo .env
 	config.AppConfig = config.Config{
 		SMTPHost:     os.Getenv("SMTP_HOST"),
-		SMTPPort:     "1025", // Convertir el puerto de cadena a entero
+		SMTPPort:     1025, // Convertir el puerto de cadena a entero
 		SMTPUser:     os.Getenv("SMTP_USER"),
 		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
 		FromEmail:    os.Getenv("FROM_EMAIL"),
@@ -49,20 +49,37 @@ func TestE2E(t *testing.T) {
 	createTestCSV(filePath)
 	defer os.Remove(filePath)
 
-	_, summary, err := transactions.ProcessTransactions(filePath)
+	totalBalance, summary, avgDebit, avgCredit, err := transactions.ProcessTransactions(filePath)
 	assert.NoError(t, err, "Error processing transactions")
 
 	for month, data := range summary {
-		for _, amount := range data {
-			date := month + "-01" // Placeholder date
-			transaction := db.Transaction{
-				Date:   date,
-				Amount: amount,
-			}
-			err = db.SaveTransaction(transaction)
-			assert.NoError(t, err, "Error saving transaction")
+		// Guardar sólo la cantidad total de transacciones en la base de datos
+		transaction := db.Transaction{
+			Date:   month + "-01",                 // Placeholder date
+			Amount: float64(data.NumTransactions), // Placeholder amount
 		}
+		err = db.SaveTransaction(transaction)
+		assert.NoError(t, err, "Error saving transaction")
 	}
+
+	emailData := email.EmailData{
+		TotalBalance:    totalBalance,
+		NumTransactions: make(map[string]int),
+		AvgDebitAmount:  avgDebit,
+		AvgCreditAmount: avgCredit,
+	}
+
+	for month, data := range summary {
+		emailData.NumTransactions[month] = data.NumTransactions
+	}
+
+	body, err := email.LoadTemplate("pkg/email/email_template.html", emailData)
+	assert.NoError(t, err, "Error loading email template")
+
+	// Omitir el envío de correo en la prueba
+	// emailSender := email.SMTPSender{}
+	// err = emailSender.SendEmail(subject, body, "recipient@example.com")
+	// assert.NoError(t, err, "Error sending email")
 
 	// Verificar que las transacciones se guardaron en la base de datos
 	transactions, err := db.GetAllTransactions()
@@ -71,5 +88,12 @@ func TestE2E(t *testing.T) {
 
 	lastTransaction := transactions[len(transactions)-1]
 	assert.Equal(t, "2024-08-01", lastTransaction.Date, "Last transaction date does not match")
-	assert.Equal(t, 10.0, lastTransaction.Amount, "Last transaction amount does not match")
+	assert.Equal(t, 2.0, lastTransaction.Amount, "Last transaction amount does not match") // Placeholder amount check
+
+	// Verificar detalles del email
+	assert.Contains(t, body, "Total balance is 39.74", "Email body does not contain correct total balance")
+	assert.Contains(t, body, "Number of transactions in 2024-07: 2", "Email body does not contain correct transaction count for July")
+	assert.Contains(t, body, "Number of transactions in 2024-08: 2", "Email body does not contain correct transaction count for August")
+	assert.Contains(t, body, "Average debit amount: -15.38", "Email body does not contain correct average debit amount")
+	assert.Contains(t, body, "Average credit amount: 35.25", "Email body does not contain correct average credit amount")
 }

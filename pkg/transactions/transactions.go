@@ -8,21 +8,31 @@ import (
 	"time"
 )
 
-func ProcessTransactions(filePath string) (float64, map[string]map[string]float64, error) {
+type Summary struct {
+	NumTransactions int
+	AvgCredit       float64
+	AvgDebit        float64
+}
+
+func ProcessTransactions(filePath string) (float64, map[string]Summary, float64, float64, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, 0, 0, err
 	}
 	defer file.Close()
 
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, 0, 0, err
 	}
 
 	transactions := make(map[string][]float64)
 	totalBalance := 0.0
+	totalCredit := 0.0
+	totalDebit := 0.0
+	numCredits := 0
+	numDebits := 0
 
 	for i, record := range records {
 		if i == 0 {
@@ -37,27 +47,35 @@ func ProcessTransactions(filePath string) (float64, map[string]map[string]float6
 		currentYear := time.Now().Year()
 		date, err := time.Parse("1/2", dateStr)
 		if err != nil {
-			return 0, nil, err
+			return 0, nil, 0, 0, err
 		}
 		date = date.AddDate(currentYear-date.Year(), 0, 0)
 
 		amount, err := strconv.ParseFloat(transactionStr, 64)
 		if err != nil {
-			return 0, nil, err
+			return 0, nil, 0, 0, err
 		}
 
 		month := date.Format("2006-01")
 		transactions[month] = append(transactions[month], amount)
 		totalBalance += amount
+
+		if amount > 0 {
+			totalCredit += amount
+			numCredits++
+		} else {
+			totalDebit += amount
+			numDebits++
+		}
 	}
 
-	summary := make(map[string]map[string]float64)
+	summary := make(map[string]Summary)
 	for month, amounts := range transactions {
-		numTransactions := float64(len(amounts))
+		numTransactions := len(amounts)
 		totalCredits := 0.0
-		numCredits := 0.0
 		totalDebits := 0.0
-		numDebits := 0.0
+		numCredits := 0
+		numDebits := 0
 		for _, amount := range amounts {
 			if amount > 0 {
 				totalCredits += amount
@@ -67,14 +85,29 @@ func ProcessTransactions(filePath string) (float64, map[string]map[string]float6
 				numDebits++
 			}
 		}
-		avgCredit := totalCredits / numCredits
-		avgDebit := totalDebits / numDebits
-		summary[month] = map[string]float64{
-			"num_transactions": numTransactions,
-			"avg_credit":       avgCredit,
-			"avg_debit":        avgDebit,
+		avgCredit := 0.0
+		if numCredits > 0 {
+			avgCredit = totalCredits / float64(numCredits)
+		}
+		avgDebit := 0.0
+		if numDebits > 0 {
+			avgDebit = totalDebits / float64(numDebits)
+		}
+		summary[month] = Summary{
+			NumTransactions: numTransactions,
+			AvgCredit:       avgCredit,
+			AvgDebit:        avgDebit,
 		}
 	}
 
-	return totalBalance, summary, nil
+	avgCredit := 0.0
+	if numCredits > 0 {
+		avgCredit = totalCredit / float64(numCredits)
+	}
+	avgDebit := 0.0
+	if numDebits > 0 {
+		avgDebit = totalDebit / float64(numDebits)
+	}
+
+	return totalBalance, summary, avgDebit, avgCredit, nil
 }
