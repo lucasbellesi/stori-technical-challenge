@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .email-body {
+            padding: 20px;
+        }
+        .logo {
+            width: 100px;
+            height: auto;
+        }
+        .summary-table {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-body">
+        <img src="cid:logo" class="logo" alt="Company Logo">
+        <h2>Transaction Summary</h2>
+        <p><strong>Total balance:</strong> {{.TotalBalance}}</p>
+        <table class="table table-striped summary-table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Number of Transactions</th>
+                    <th>Average Credit</th>
+                    <th>Average Debit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Summary}}
+                <tr>
+                    <td>{{.Month}}</td>
+                    <td>{{.NumTransactions}}</td>
+                    <td>{{.AvgCredit}}</td>
+                    <td>{{.AvgDebit}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

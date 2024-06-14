@@ -3,12 +3,15 @@ package main
 import (
 	"fmt"
 	"log"
+	"stori-technical-challenge/config"
 	"stori-technical-challenge/pkg/db"
 	"stori-technical-challenge/pkg/email"
 	"stori-technical-challenge/pkg/transactions"
 )
 
 func main() {
+	config.LoadConfig()
+
 	err := db.InitDB()
 	if err != nil {
 		log.Fatalf("Error initializing database: %v", err)
@@ -34,44 +37,26 @@ func main() {
 		}
 	}
 
-	subject := "Stori - Transaction Summary"
-	body := fmt.Sprintf(`
-    <div class="container">
-        <div class="row">
-            <div class="col-12">
-                <p><strong>Total balance:</strong> %.2f</p>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-12">
-                <table class="table table-striped summary-table">
-                    <thead>
-                        <tr>
-                            <th>Month</th>
-                            <th>Number of Transactions</th>
-                            <th>Average Credit</th>
-                            <th>Average Debit</th>
-                        </tr>
-                    </thead>
-                    <tbody>`, totalBalance)
-
-	for month, data := range summary {
-		body += fmt.Sprintf(`
-            <tr>
-                <td>%s</td>
-                <td>%.0f</td>
-                <td>%.2f</td>
-                <td>%.2f</td>
-            </tr>`,
-			month, data["num_transactions"], data["avg_credit"], data["avg_debit"])
+	subject := "Transaction Summary"
+	emailData := email.EmailData{
+		TotalBalance: totalBalance,
+		Summary:      []email.MonthSummary{},
 	}
 
-	body += `
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>`
+	for month, data := range summary {
+		monthSummary := email.MonthSummary{
+			Month:           month,
+			NumTransactions: int(data["num_transactions"]),
+			AvgCredit:       data["avg_credit"],
+			AvgDebit:        data["avg_debit"],
+		}
+		emailData.Summary = append(emailData.Summary, monthSummary)
+	}
+
+	body, err := email.LoadTemplate("pkg/email/email_template.html", emailData)
+	if err != nil {
+		log.Fatalf("Error loading email template: %v", err)
+	}
 
 	emailSender := email.SMTPSender{}
 	err = emailSender.SendEmail(subject, body)
