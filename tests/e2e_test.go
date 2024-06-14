@@ -52,15 +52,9 @@ func TestE2E(t *testing.T) {
 	totalBalance, summary, avgDebit, avgCredit, err := transactions.ProcessTransactions(filePath)
 	assert.NoError(t, err, "Error processing transactions")
 
-	for month, data := range summary {
-		// Guardar sólo la cantidad total de transacciones en la base de datos
-		transaction := db.Transaction{
-			Date:   month + "-01",                 // Placeholder date
-			Amount: float64(data.NumTransactions), // Placeholder amount
-		}
-		err = db.SaveTransaction(transaction)
-		assert.NoError(t, err, "Error saving transaction")
-	}
+	// Guardar todas las transacciones individuales en la base de datos
+	err = db.SaveTransactionsFromCSV(filePath)
+	assert.NoError(t, err, "Error saving transactions from CSV")
 
 	emailData := email.EmailData{
 		TotalBalance:    totalBalance,
@@ -73,7 +67,7 @@ func TestE2E(t *testing.T) {
 		emailData.NumTransactions[month] = data.NumTransactions
 	}
 
-	body, err := email.LoadTemplate("pkg/email/email_template.html", emailData)
+	body, err := email.LoadTemplate("email_template_test.html", emailData)
 	assert.NoError(t, err, "Error loading email template")
 
 	// Omitir el envío de correo en la prueba
@@ -87,8 +81,8 @@ func TestE2E(t *testing.T) {
 	assert.NotEmpty(t, transactions, "No transactions found")
 
 	lastTransaction := transactions[len(transactions)-1]
-	assert.Equal(t, "2024-08-01", lastTransaction.Date, "Last transaction date does not match")
-	assert.Equal(t, 2.0, lastTransaction.Amount, "Last transaction amount does not match") // Placeholder amount check
+	assert.Equal(t, "2024-08-13", lastTransaction.Date, "Last transaction date does not match")
+	assert.Equal(t, 10.0, lastTransaction.Amount, "Last transaction amount does not match")
 
 	// Verificar detalles del email
 	assert.Contains(t, body, "Total balance is 39.74", "Email body does not contain correct total balance")
