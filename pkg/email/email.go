@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"stori-technical-challenge/config"
+	"strconv"
 
 	"gopkg.in/gomail.v2"
 )
@@ -38,7 +39,12 @@ func (s SMTPSender) SendEmail(subject, body string) error {
 
 	m.SetBody("text/html", body)
 
-	d := gomail.NewDialer(config.AppConfig.SMTPHost, config.AppConfig.SMTPPort, config.AppConfig.SMTPUser, config.AppConfig.SMTPPassword)
+	port, err := strconv.Atoi(config.AppConfig.SMTPPort)
+	if err != nil {
+		return err
+	}
+
+	d := gomail.NewDialer(config.AppConfig.SMTPHost, port, config.AppConfig.SMTPUser, config.AppConfig.SMTPPassword)
 
 	if err := d.DialAndSend(m); err != nil {
 		return err

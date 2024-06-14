@@ -9,9 +9,14 @@ Este proyecto procesa un archivo de transacciones y envía un resumen por correo
 
 ## Compilación y Ejecución
 
-### Local
+### RUN Local
 
 ```sh
-docker build -t lucasbellesi/stori-technical-challenge .
+go run cmd/api/main.go
+```
 
-docker run --rm lucasbellesi/stori-technical-challenge
+### TEST Local
+
+```sh
+go test ./...
+```

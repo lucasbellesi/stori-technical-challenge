@@ -36,7 +36,7 @@ func TestE2E(t *testing.T) {
 	// Cargar la configuración sin depender del archivo .env
 	config.AppConfig = config.Config{
 		SMTPHost:     os.Getenv("SMTP_HOST"),
-		SMTPPort:     1025, // Convertir el puerto de cadena a entero
+		SMTPPort:     "1025", // Convertir el puerto de cadena a entero
 		SMTPUser:     os.Getenv("SMTP_USER"),
 		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
 		FromEmail:    os.Getenv("FROM_EMAIL"),
