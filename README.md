@@ -12,6 +12,6 @@ Este proyecto procesa un archivo de transacciones y envía un resumen por correo
 ### Local
 
 ```sh
-docker build -t stori-technical-challenge .
+docker build --platform linux/amd64 -t lucasbellesi/stori-technical-challenge .
 
-docker run --rm stori-technical-challenge
+docker run --rm lucasbellesi/stori-technical-challenge
