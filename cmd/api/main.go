@@ -9,7 +9,7 @@ import (
 	"stori-technical-challenge/pkg/transactions"
 )
 
-const SendEmailTo = "alejobellesi@hotmail.com"
+const SendEmailTo = "alejo.16.2012@gmail.com"
 
 func main() {
 	err := config.LoadConfig()
@@ -42,7 +42,7 @@ func main() {
 		}
 	}
 
-	subject := "Transaction Summary"
+	subject := "Stori - Transaction Summary"
 	body := fmt.Sprintf(`
     <div class="container">
         <div class="row">
@@ -81,7 +81,8 @@ func main() {
         </div>
     </div>`
 
-	err = email.SendEmail(subject, body, SendEmailTo)
+	emailSender := email.SMTPSender{}
+	err = emailSender.SendEmail(subject, body, SendEmailTo)
 	if err != nil {
 		log.Fatalf("Error sending email: %v", err)
 	}
