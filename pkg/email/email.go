@@ -35,10 +35,10 @@ func SendEmail(subject, body, toEmail string) error {
     </head>
     <body>
         <div class="email-body">
+			<img src="Stori_Logo_2023.png" alt="company logo"/>
             <h2>Transaction Summary</h2>
             %s
         </div>
-		<img src = "Stori_Logo_2023.png" alt="company logo"/>
     </body>
     </html>
     `, body)
