@@ -9,6 +9,8 @@ import (
 	"stori-technical-challenge/pkg/transactions"
 )
 
+const SendEmailTo = "alejobellesi@hotmail.com"
+
 func main() {
 	err := config.LoadConfig()
 	if err != nil {
@@ -79,7 +81,7 @@ func main() {
         </div>
     </div>`
 
-	err = email.SendEmail(subject, body, "lucasalejobellesi@gmail.com")
+	err = email.SendEmail(subject, body, SendEmailTo)
 	if err != nil {
 		log.Fatalf("Error sending email: %v", err)
 	}
