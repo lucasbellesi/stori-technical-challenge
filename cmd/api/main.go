@@ -3,21 +3,13 @@ package main
 import (
 	"fmt"
 	"log"
-	"stori-technical-challenge/config"
 	"stori-technical-challenge/pkg/db"
 	"stori-technical-challenge/pkg/email"
 	"stori-technical-challenge/pkg/transactions"
 )
 
-const SendEmailTo = "alejo.16.2012@gmail.com"
-
 func main() {
-	err := config.LoadConfig()
-	if err != nil {
-		log.Fatalf("Error loading config: %v", err)
-	}
-
-	err = db.InitDB()
+	err := db.InitDB()
 	if err != nil {
 		log.Fatalf("Error initializing database: %v", err)
 	}
@@ -82,7 +74,7 @@ func main() {
     </div>`
 
 	emailSender := email.SMTPSender{}
-	err = emailSender.SendEmail(subject, body, SendEmailTo)
+	err = emailSender.SendEmail(subject, body)
 	if err != nil {
 		log.Fatalf("Error sending email: %v", err)
 	}

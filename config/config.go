@@ -1,11 +1,8 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"strconv"
-
-	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -14,25 +11,20 @@ type Config struct {
 	SMTPUser     string
 	SMTPPassword string
 	FromEmail    string
+	ToEmail      string
 }
 
 var AppConfig Config
 
-func LoadConfig() error {
-	err := godotenv.Load()
-	if err != nil {
-		return fmt.Errorf("Error loading .env file")
-	}
-
+func LoadConfig() {
 	AppConfig = Config{
 		SMTPHost:     os.Getenv("SMTP_HOST"),
 		SMTPPort:     getEnvAsInt("SMTP_PORT", 587),
 		SMTPUser:     os.Getenv("SMTP_USER"),
 		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
 		FromEmail:    os.Getenv("FROM_EMAIL"),
+		ToEmail:      os.Getenv("TO_EMAIL"),
 	}
-
-	return nil
 }
 
 func getEnvAsInt(name string, defaultValue int) int {

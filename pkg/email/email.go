@@ -13,10 +13,10 @@ type EmailSender interface {
 
 type SMTPSender struct{}
 
-func (s SMTPSender) SendEmail(subject, body, toEmail string) error {
+func (s SMTPSender) SendEmail(subject, body string) error {
 	m := gomail.NewMessage()
 	m.SetHeader("From", config.AppConfig.FromEmail)
-	m.SetHeader("To", toEmail)
+	m.SetHeader("To", config.AppConfig.ToEmail)
 	m.SetHeader("Subject", subject)
 
 	logoPath := "Stori_Logo_2023-min.png" // Ruta al archivo del logo
