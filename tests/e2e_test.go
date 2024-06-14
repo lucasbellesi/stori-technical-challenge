@@ -64,12 +64,6 @@ func TestE2E(t *testing.T) {
 		}
 	}
 
-	// Omitir el envío de correo
-	// subject := "Transaction Summary"
-	// body := fmt.Sprintf("...") // Generar cuerpo del correo
-	// err = emailSender.SendEmail(subject, body, "recipient@example.com")
-	// assert.NoError(t, err, "Error sending email")
-
 	// Verificar que las transacciones se guardaron en la base de datos
 	transactions, err := db.GetAllTransactions()
 	assert.NoError(t, err, "Error retrieving transactions")
