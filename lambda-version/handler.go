@@ -29,7 +29,7 @@ func handleRequest(ctx context.Context, req Request) {
 	}
 
 	emailData := email.GenerateEmailData(totalBalance, summary, avgDebit, avgCredit)
-	body, err := email.LoadTemplate("pkg/email/email_template.html", emailData)
+	body, err := email.LoadTemplate("email_template.html", emailData)
 	if err != nil {
 		log.Fatalf("Error loading email template: %v", err)
 		return
