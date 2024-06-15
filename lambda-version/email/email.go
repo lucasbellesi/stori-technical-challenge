@@ -73,9 +73,6 @@ func (s SMTPSender) SendEmail(subject, body, toEmail string) error {
 	m.SetHeader("To", toEmail)
 	m.SetHeader("Subject", subject)
 
-	logoPath := "assets/Stori_Logo_2023-min.png" // Ruta al archivo del logo
-	m.Embed(logoPath)
-
 	m.SetBody("text/html", body)
 
 	d := gomail.NewDialer(AppConfig.SMTPHost, AppConfig.SMTPPort, AppConfig.SMTPUser, AppConfig.SMTPPassword)
