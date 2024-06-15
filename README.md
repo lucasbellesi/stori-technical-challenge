@@ -1,6 +1,6 @@
 # Stori Technical Challenge
 
-Este proyecto procesa un archivo de transacciones y envía un resumen por correo electrónico.
+Este proyecto procesa un archivo de transacciones, las guarda en una base de datos SQLlite y envía un resumen por correo electrónico con el logo de la empresa.
 
 ## Configuración
 
