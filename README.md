@@ -20,3 +20,15 @@ go run cmd/api/main.go
 ```sh
 go test ./...
 ```
+
+### BUILD DOCKER Local
+
+```sh
+docker build -t lucasbellesi/stori-technical-challenge .
+```
+
+### RUN DOCKER Local
+
+```sh
+docker run --rm lucasbellesi/stori-technical-challenge
+```
