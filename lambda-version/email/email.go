@@ -2,12 +2,46 @@ package email
 
 import (
 	"bytes"
+	"log"
+	"os"
+	"strconv"
+
 	"fmt"
 	"html/template"
-	"stori-technical-challenge/config"
 
 	"gopkg.in/gomail.v2"
 )
+
+type Config struct {
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUser     string
+	SMTPPassword string
+	FromEmail    string
+	ToEmail      string
+}
+
+var AppConfig Config
+
+func LoadConfig() error {
+	smtpPortStr := os.Getenv("SMTP_PORT")
+	smtpPort, err := strconv.Atoi(smtpPortStr)
+	if err != nil {
+		log.Fatalf("Invalid SMTP_PORT value: %v", err)
+		return err
+	}
+
+	AppConfig = Config{
+		SMTPHost:     os.Getenv("SMTP_HOST"),
+		SMTPPort:     smtpPort,
+		SMTPUser:     os.Getenv("SMTP_USER"),
+		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
+		FromEmail:    os.Getenv("FROM_EMAIL"),
+		ToEmail:      os.Getenv("TO_EMAIL"),
+	}
+
+	return nil
+}
 
 type Summary struct {
 	NumTransactions int
@@ -29,8 +63,13 @@ type EmailData struct {
 }
 
 func (s SMTPSender) SendEmail(subject, body, toEmail string) error {
+	err := LoadConfig()
+	if err != nil {
+		return err
+	}
+
 	m := gomail.NewMessage()
-	m.SetHeader("From", config.AppConfig.FromEmail)
+	m.SetHeader("From", AppConfig.FromEmail)
 	m.SetHeader("To", toEmail)
 	m.SetHeader("Subject", subject)
 
@@ -39,7 +78,7 @@ func (s SMTPSender) SendEmail(subject, body, toEmail string) error {
 
 	m.SetBody("text/html", body)
 
-	d := gomail.NewDialer(config.AppConfig.SMTPHost, config.AppConfig.SMTPPort, config.AppConfig.SMTPUser, config.AppConfig.SMTPPassword)
+	d := gomail.NewDialer(AppConfig.SMTPHost, AppConfig.SMTPPort, AppConfig.SMTPUser, AppConfig.SMTPPassword)
 
 	if err := d.DialAndSend(m); err != nil {
 		return err
