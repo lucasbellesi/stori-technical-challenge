@@ -26,7 +26,10 @@ func main() {
 		log.Fatalf("Error initializing database: %v", err)
 	}
 
-	totalBalance, summary, avgDebit, avgCredit, err := transactions.ProcessTransactions(FilePath)
+	reader := transactions.DefaultCSVReader{}
+	processor := transactions.NewProcessor(reader)
+
+	totalBalance, summary, avgDebit, avgCredit, err := processor.ProcessTransactions(FilePath)
 	if err != nil {
 		log.Fatalf("Error processing transactions: %v", err)
 	}

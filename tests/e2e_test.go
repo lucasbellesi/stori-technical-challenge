@@ -49,7 +49,10 @@ func TestE2E(t *testing.T) {
 	createTestCSV(filePath)
 	defer os.Remove(filePath)
 
-	totalBalance, summary, avgDebit, avgCredit, err := transactions.ProcessTransactions(filePath)
+	reader := transactions.DefaultCSVReader{}
+	processor := transactions.NewProcessor(reader)
+
+	totalBalance, summary, avgDebit, avgCredit, err := processor.ProcessTransactions(filePath)
 	assert.NoError(t, err, "Error processing transactions")
 
 	// Guardar todas las transacciones individuales en la base de datos
