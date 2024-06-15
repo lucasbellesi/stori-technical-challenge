@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"stori-technical-challenge/config"
+	"stori-technical-challenge/pkg/transactions"
 
 	"gopkg.in/gomail.v2"
 )
@@ -53,4 +54,19 @@ func LoadTemplate(templatePath string, data EmailData) (string, error) {
 	}
 
 	return tpl.String(), nil
+}
+
+func GenerateEmailData(totalBalance float64, summary map[string]transactions.Summary, avgDebit float64, avgCredit float64) EmailData {
+	emailData := EmailData{
+		TotalBalance:    totalBalance,
+		NumTransactions: make(map[string]int),
+		AvgDebitAmount:  avgDebit,
+		AvgCreditAmount: avgCredit,
+	}
+
+	for month, data := range summary {
+		emailData.NumTransactions[month] = data.NumTransactions
+	}
+
+	return emailData
 }

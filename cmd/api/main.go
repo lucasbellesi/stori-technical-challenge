@@ -31,28 +31,13 @@ func main() {
 		log.Fatalf("Error processing transactions: %v", err)
 	}
 
-	for month, data := range summary {
-		// Guardar sólo la cantidad total de transacciones en la base de datos
-		transaction := db.Transaction{
-			Date:   month + "-01",                 // Placeholder date
-			Amount: float64(data.NumTransactions), // Placeholder amount
-		}
-		err = db.SaveTransaction(transaction)
-		if err != nil {
-			log.Fatalf("Error saving transactions: %v", err)
-		}
+	// Guardar todas las transacciones individuales en la base de datos
+	err = db.SaveTransactionsFromCSV(FilePath)
+	if err != nil {
+		log.Fatalf("Error saving transactions to the database: %v", err)
 	}
 
-	emailData := email.EmailData{
-		TotalBalance:    totalBalance,
-		NumTransactions: make(map[string]int),
-		AvgDebitAmount:  avgDebit,
-		AvgCreditAmount: avgCredit,
-	}
-
-	for month, data := range summary {
-		emailData.NumTransactions[month] = data.NumTransactions
-	}
+	emailData := email.GenerateEmailData(totalBalance, summary, avgDebit, avgCredit)
 
 	body, err := email.LoadTemplate(FilePathEmailTemplate, emailData)
 	if err != nil {
@@ -68,6 +53,7 @@ func main() {
 	fmt.Println("Email sent successfully!")
 
 	// Retrieve and print all transactions
+	fmt.Println("The database:")
 	transactions, err := db.GetAllTransactions()
 	if err != nil {
 		log.Fatalf("Error retrieving transactions: %v", err)
