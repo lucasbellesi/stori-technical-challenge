@@ -37,22 +37,26 @@ func (p *Processor) parseTransactions(records [][]string) map[string][]float64 {
 	transactions := make(map[string][]float64)
 	currentYear := time.Now().Year()
 
-	for _, record := range records {
-		if len(record) < 2 {
-			continue // Ignore invalid records
+	for i, record := range records {
+		if i == 0 {
+			continue // skip header
 		}
 
-		amount, err := strconv.ParseFloat(record[1], 64)
+		dateStr := strings.TrimSpace(record[1])
+		transactionStr := strings.TrimSpace(record[2])
+		date, err := time.Parse("1/2", dateStr)
 		if err != nil {
-			continue // Ignore invalid records
+			continue
+		}
+		date = date.AddDate(currentYear-date.Year(), 0, 0)
+
+		amount, err := strconv.ParseFloat(transactionStr, 64)
+		if err != nil {
+			continue
 		}
 
-		date := record[0]
-		if strings.HasPrefix(date, "CURRENT_YEAR") {
-			date = strings.Replace(date, "CURRENT_YEAR", strconv.Itoa(currentYear), 1)
-		}
-
-		transactions[date] = append(transactions[date], amount)
+		month := date.Format("2006-01")
+		transactions[month] = append(transactions[month], amount)
 	}
 
 	return transactions
