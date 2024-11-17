@@ -21,7 +21,7 @@ TO_EMAIL=lucasalejobellesi@gmail.com
 ### RUN Local
 
 ```sh
-go run cmd/api/main.go
+go run main.go
 ```
 
 ### TEST Local
