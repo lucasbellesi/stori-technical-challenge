@@ -70,3 +70,17 @@ func GenerateEmailData(totalBalance float64, summary map[string]transactions.Sum
 
 	return emailData
 }
+
+func RenderTemplate(templatePath string, data interface{}) (string, error) {
+	tmpl, err := template.ParseFiles(templatePath)
+	if err != nil {
+		return "", err
+	}
+
+	var buffer bytes.Buffer
+	if err := tmpl.Execute(&buffer, data); err != nil {
+		return "", err
+	}
+
+	return buffer.String(), nil
+}

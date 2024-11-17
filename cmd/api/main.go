@@ -16,52 +16,77 @@ const (
 )
 
 func main() {
-	err := config.LoadConfig()
-	if err != nil {
-		log.Fatalf("Error loading config: %v", err)
+	if err := initializeApp(); err != nil {
+		log.Fatalf("Failed to initialize application: %v", err)
 	}
 
-	err = db.InitDB()
-	if err != nil {
-		log.Fatalf("Error initializing database: %v", err)
+	if err := processAndSendTransactions(); err != nil {
+		log.Fatalf("Failed to process transactions: %v", err)
 	}
 
+	log.Println("Application finished successfully")
+}
+
+func initializeApp() error {
+	if err := config.LoadConfig(); err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
+	}
+
+	if err := db.InitDB(); err != nil {
+		return fmt.Errorf("failed to initialize database: %w", err)
+	}
+
+	return nil
+}
+
+func processAndSendTransactions() error {
 	reader := transactions.DefaultCSVReader{}
 	processor := transactions.NewProcessor(reader)
 
+	// Process transactions and get results
 	totalBalance, summary, avgDebit, avgCredit, err := processor.ProcessTransactions(FilePath)
 	if err != nil {
-		log.Fatalf("Error processing transactions: %v", err)
+		return fmt.Errorf("processing transactions: %w", err)
 	}
 
-	// Guardar todas las transacciones individuales en la base de datos
-	err = db.SaveTransactionsFromCSV(FilePath)
+	// Save processed transactions to database
+	if err := db.SaveTransactionsFromCSV(FilePath); err != nil {
+		return fmt.Errorf("saving transactions to the database: %w", err)
+	}
+
+	// Send the summary email
+	if err := sendSummaryEmail(totalBalance, summary, avgDebit, avgCredit); err != nil {
+		return fmt.Errorf("sending summary email: %w", err)
+	}
+
+	return nil
+}
+
+func sendSummaryEmail(totalBalance float64, summary map[string]transactions.Summary, avgDebit, avgCredit float64) error {
+	// Prepare email data
+	emailData := email.EmailData{
+		TotalBalance:    totalBalance,
+		NumTransactions: map[string]int{}, // Populate with summary data
+		AvgDebitAmount:  avgDebit,
+		AvgCreditAmount: avgCredit,
+	}
+
+	// Populate NumTransactions from summary
+	for date, details := range summary {
+		emailData.NumTransactions[date] = details.NumTransactions
+	}
+
+	// Render email template
+	body, err := email.RenderTemplate(FilePathEmailTemplate, emailData)
 	if err != nil {
-		log.Fatalf("Error saving transactions to the database: %v", err)
+		return fmt.Errorf("rendering email template: %w", err)
 	}
 
-	emailData := email.GenerateEmailData(totalBalance, summary, avgDebit, avgCredit)
-
-	body, err := email.LoadTemplate(FilePathEmailTemplate, emailData)
-	if err != nil {
-		log.Fatalf("Error loading email template: %v", err)
+	// Send email using SMTPSender
+	sender := email.SMTPSender{}
+	if err := sender.SendEmail(Subject, body); err != nil {
+		return fmt.Errorf("sending email: %w", err)
 	}
 
-	emailSender := email.SMTPSender{}
-	err = emailSender.SendEmail(Subject, body)
-	if err != nil {
-		log.Fatalf("Error sending email: %v", err)
-	}
-
-	fmt.Println("Email sent successfully!")
-
-	// Retrieve and print all transactions
-	fmt.Println("The database:")
-	transactions, err := db.GetAllTransactions()
-	if err != nil {
-		log.Fatalf("Error retrieving transactions: %v", err)
-	}
-	for _, transaction := range transactions {
-		fmt.Printf("Date: %s, Amount: %.2f\n", transaction.Date, transaction.Amount)
-	}
+	return nil
 }

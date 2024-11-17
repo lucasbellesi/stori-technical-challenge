@@ -1,53 +1,81 @@
-package transactions_test
+package transactions
 
 import (
-	"os"
-	"stori-technical-challenge/pkg/transactions"
+	"reflect"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
-func createTestCSV(filePath string) {
-	file, err := os.Create(filePath)
-	if err != nil {
-		panic(err)
+func TestParseTransactions(t *testing.T) {
+	reader := &MockCSVReader{
+		records: [][]string{
+			{"2023-11-01", "100.0"},
+			{"2023-11-01", "-50.0"},
+			{"2023-11-02", "200.0"},
+		},
 	}
-	defer file.Close()
+	processor := NewProcessor(reader)
 
-	file.WriteString("Id,Date,Transaction\n")
-	file.WriteString("0,7/15,+60.5\n")
-	file.WriteString("1,7/28,-10.3\n")
-	file.WriteString("2,8/2,-20.46\n")
-	file.WriteString("3,8/13,+10\n")
+	transactions := processor.parseTransactions(reader.records)
+
+	expected := map[string][]float64{
+		"2023-11-01": {100.0, -50.0},
+		"2023-11-02": {200.0},
+	}
+
+	if !reflect.DeepEqual(transactions, expected) {
+		t.Errorf("expected %v, got %v", expected, transactions)
+	}
 }
 
-func TestProcessTransactions(t *testing.T) {
-	reader := transactions.DefaultCSVReader{}
-	processor := transactions.NewProcessor(reader)
-
-	filePath := "test_transactions.csv"
-	createTestCSV(filePath)
-	defer os.Remove(filePath)
-
-	totalBalance, summary, avgDebit, avgCredit, err := processor.ProcessTransactions(filePath)
-	assert.NoError(t, err, "Error processing transactions")
-	assert.Equal(t, 39.74, totalBalance, "Total balance does not match")
-
-	expectedSummary := map[string]transactions.Summary{
-		"2024-07": {
-			NumTransactions: 2,
-			AvgCredit:       60.5,
-			AvgDebit:        -10.3,
-		},
-		"2024-08": {
-			NumTransactions: 2,
-			AvgCredit:       10.0,
-			AvgDebit:        -20.46,
-		},
+func TestCalculateTotalsAndAverages(t *testing.T) {
+	transactions := map[string][]float64{
+		"2023-11-01": {100.0, -50.0},
+		"2023-11-02": {200.0, -100.0},
 	}
 
-	assert.Equal(t, expectedSummary, summary, "Summary does not match")
-	assert.Equal(t, -15.38, avgDebit, "Average debit amount does not match")
-	assert.Equal(t, 35.25, avgCredit, "Average credit amount does not match")
+	processor := &Processor{}
+	totalBalance, avgCredit, avgDebit, err := processor.calculateTotalsAndAverages(transactions)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if totalBalance != 150.0 {
+		t.Errorf("expected total balance to be 150.0, got %f", totalBalance)
+	}
+
+	if avgCredit != 150.0 {
+		t.Errorf("expected avg credit to be 150.0, got %f", avgCredit)
+	}
+
+	if avgDebit != -75.0 {
+		t.Errorf("expected avg debit to be -75.0, got %f", avgDebit)
+	}
+}
+
+func TestGenerateSummary(t *testing.T) {
+	transactions := map[string][]float64{
+		"2023-11-01": {100.0, -50.0},
+		"2023-11-02": {200.0, -100.0},
+	}
+
+	processor := &Processor{}
+	summary := processor.generateSummary(transactions)
+
+	expected := map[string]Summary{
+		"2023-11-01": {NumTransactions: 2, AvgCredit: 100.0, AvgDebit: -50.0},
+		"2023-11-02": {NumTransactions: 2, AvgCredit: 200.0, AvgDebit: -100.0},
+	}
+
+	if !reflect.DeepEqual(summary, expected) {
+		t.Errorf("expected %v, got %v", expected, summary)
+	}
+}
+
+type MockCSVReader struct {
+	records [][]string
+}
+
+func (m *MockCSVReader) Read(filePath string) ([][]string, error) {
+	return m.records, nil
 }
