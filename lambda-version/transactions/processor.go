@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
-	"stori-technical-challenge/lambda-version/email"
 	"strconv"
 	"strings"
 	"time"
@@ -14,29 +13,96 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-func ProcessTransactionsFromS3(bucket, key string) (float64, map[string]email.Summary, float64, float64, error) {
+type Summary struct {
+	NumTransactions int
+	AvgCredit       float64
+	AvgDebit        float64
+}
+
+// S3Client defines an interface for S3 operations.
+type S3Client interface {
+	GetObject(bucket, key string) (*s3.GetObjectOutput, error)
+}
+
+type DefaultS3Client struct{}
+
+func (c *DefaultS3Client) GetObject(bucket, key string) (*s3.GetObjectOutput, error) {
 	sess := session.Must(session.NewSession())
 	svc := s3.New(sess)
-
-	obj, err := svc.GetObject(&s3.GetObjectInput{
+	return svc.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})
+}
+
+// ProcessTransactionsFromS3 processes a CSV file from S3.
+func ProcessTransactionsFromS3(bucket, key string, client S3Client) (float64, map[string]Summary, float64, float64, error) {
+	obj, err := client.GetObject(bucket, key)
 	if err != nil {
 		return 0, nil, 0, 0, fmt.Errorf("error getting object from S3: %w", err)
 	}
 	defer obj.Body.Close()
 
+	// Convert obj.Body (io.ReadCloser) into a buffer
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(obj.Body)
+	if _, err := buf.ReadFrom(obj.Body); err != nil {
+		return 0, nil, 0, 0, fmt.Errorf("error reading object body: %w", err)
+	}
 
-	reader := csv.NewReader(buf)
-	records, err := reader.ReadAll()
+	// Create a bytes.Reader from the buffer
+	reader := bytes.NewReader(buf.Bytes())
+
+	records, err := readCSV(reader)
 	if err != nil {
-		return 0, nil, 0, 0, fmt.Errorf("error reading CSV: %w", err)
+		return 0, nil, 0, 0, err
 	}
 
 	transactions := parseTransactions(records)
+	return calculateMetrics(transactions)
+}
+
+func readCSV(dataStream *bytes.Reader) ([][]string, error) {
+	reader := csv.NewReader(dataStream)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("error reading CSV: %w", err)
+	}
+	return records, nil
+}
+
+func parseTransactions(records [][]string) map[string][]float64 {
+	transactions := make(map[string][]float64)
+	currentYear := time.Now().Year()
+
+	for i, record := range records {
+		if i == 0 {
+			continue // Skip headers
+		}
+		date, amount, err := parseRecord(record)
+		if err != nil {
+			continue
+		}
+		month := fmt.Sprintf("%d-%s", currentYear, date)
+		transactions[month] = append(transactions[month], amount)
+	}
+	return transactions
+}
+
+func parseRecord(record []string) (string, float64, error) {
+	if len(record) < 3 {
+		return "", 0, fmt.Errorf("invalid record format")
+	}
+
+	date := strings.TrimSpace(record[1])
+	amount, err := strconv.ParseFloat(strings.TrimSpace(record[2]), 64)
+	if err != nil {
+		return "", 0, fmt.Errorf("error parsing amount: %w", err)
+	}
+
+	return date, amount, nil
+}
+
+func calculateMetrics(transactions map[string][]float64) (float64, map[string]Summary, float64, float64, error) {
 	totalBalance, totalCredit, totalDebit, numCredits, numDebits := calculateTotals(transactions)
 	summary := calculateSummary(transactions)
 
@@ -50,35 +116,6 @@ func ProcessTransactionsFromS3(bucket, key string) (float64, map[string]email.Su
 	}
 
 	return totalBalance, summary, avgDebit, avgCredit, nil
-}
-
-func parseTransactions(records [][]string) map[string][]float64 {
-	transactions := make(map[string][]float64)
-	currentYear := time.Now().Year()
-
-	for i, record := range records {
-		if i == 0 {
-			continue // skip header
-		}
-
-		dateStr := strings.TrimSpace(record[1])
-		transactionStr := strings.TrimSpace(record[2])
-		date, err := time.Parse("1/2", dateStr)
-		if err != nil {
-			continue
-		}
-		date = date.AddDate(currentYear-date.Year(), 0, 0)
-
-		amount, err := strconv.ParseFloat(transactionStr, 64)
-		if err != nil {
-			continue
-		}
-
-		month := date.Format("2006-01")
-		transactions[month] = append(transactions[month], amount)
-	}
-
-	return transactions
 }
 
 func calculateTotals(transactions map[string][]float64) (float64, float64, float64, int, int) {
@@ -100,19 +137,14 @@ func calculateTotals(transactions map[string][]float64) (float64, float64, float
 			}
 		}
 	}
-
 	return totalBalance, totalCredit, totalDebit, numCredits, numDebits
 }
 
-func calculateSummary(transactions map[string][]float64) map[string]email.Summary {
-	summary := make(map[string]email.Summary)
-
+func calculateSummary(transactions map[string][]float64) map[string]Summary {
+	summary := make(map[string]Summary)
 	for month, amounts := range transactions {
 		numTransactions := len(amounts)
-		totalCredits := 0.0
-		totalDebits := 0.0
-		numCredits := 0
-		numDebits := 0
+		totalCredits, totalDebits, numCredits, numDebits := 0.0, 0.0, 0, 0
 
 		for _, amount := range amounts {
 			if amount > 0 {
@@ -133,12 +165,11 @@ func calculateSummary(transactions map[string][]float64) map[string]email.Summar
 			avgDebit = totalDebits / float64(numDebits)
 		}
 
-		summary[month] = email.Summary{
+		summary[month] = Summary{
 			NumTransactions: numTransactions,
 			AvgCredit:       avgCredit,
 			AvgDebit:        avgDebit,
 		}
 	}
-
 	return summary
 }
